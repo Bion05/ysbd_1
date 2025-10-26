@@ -17,8 +17,8 @@
  */
 typedef struct HeapFileHeader {
     char filetype[8];
-    int record_size;
-    int records_per_blocks;
+    int totalRecords;
+    int totalBlocks;
 } HeapFileHeader;
 
 /**
