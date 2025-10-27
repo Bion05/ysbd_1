@@ -100,50 +100,27 @@ int HeapFile_InsertRecord(int file_handle, HeapFileHeader *hp_info, const Record
   BF_Block *block;
   int blocks_number = hp_info->totalBlocks;
   char *data;
-  // Ελεγχος διπλότυπης εγγραφής
   unsigned long available_space =(BF_BLOCK_SIZE*blocks_number) - (sizeof(Record)*hp_info->totalRecords) - sizeof(HeapFileHeader);
-  for(int i = 0; i < blocks_number; i++){
-    CALL_BF(BF_GetBlock(file_handle, i, block));
-    data = BF_Block_GetData(block);
-    int rpb = BF_BLOCK_SIZE/sizeof(Record);
-    if(i==0){
-      rpb = (BF_BLOCK_SIZE - sizeof(HeapFileHeader))/ sizeof(Record);
-      data = data + sizeof(HeapFileHeader);
-    }
-    if(i == blocks_number - 1)rpb = rpb - (available_space/sizeof(Record));
-    Record *records = (Record *) data;
-    CALL_BF(BF_UnpinBlock(block));
-    for(int j=0;j<rpb;j++){
-      if(records[j].id == record.id){
-          printf("Record with id %d already exists!\n", record.id);
-          return 0;
-        }
-      }
-    }
-    
-
+  
   // Εντοπισμος του τελευταίου block
-  if(BF_GetBlock(file_handle,blocks_number-1, block) != BF_OK){
-    return 0;
-  }
-
-    data = BF_Block_GetData(block);
-    // Αν υπάρχει χώρος προσθέτουμε την εγγραφή
-    if(sizeof(record)<=available_space){
-      data = data + (BF_BLOCK_SIZE - available_space);
-      Record* slot = (Record *)data;
-      *slot = record;
-      BF_Block_SetDirty(block);
-      CALL_BF(BF_UnpinBlock(block));
-      hp_info->totalRecords +=1;
-      return 1;
+  CALL_BF(BF_GetBlock(file_handle,blocks_number-1, block) != BF_OK);
+  data = BF_Block_GetData(block);
+  // Αν υπάρχει χώρος προσθέτουμε την εγγραφή
+  if(sizeof(record)<=available_space){
+    data += (BF_BLOCK_SIZE - available_space);
+    Record* slot = (Record *)data;
+    *slot = record;
+    BF_Block_SetDirty(block);
+    CALL_BF(BF_UnpinBlock(block));
+    hp_info->totalRecords+=1;
+    return 1;
   }
 
   // Αν το τελευταίο block είναι γεμάτο δημιουργούμε νέο block
   CALL_BF(BF_UnpinBlock(block));
 
   BF_Block_Init(&block);
-  BF_AllocateBlock(file_handle, block);
+  CALL_BF(BF_AllocateBlock(file_handle, block));
   data = BF_Block_GetData(block);
   Record* slot = (Record *)data;
   *slot = record;
