@@ -27,8 +27,7 @@ typedef struct HeapFileHeader {
 typedef struct HeapFileIterator{
     int file_handle;
     int current_block; // 0-indexed 
-    int current_record; //0-indexed
-    int rinb; //records in current block
+    int current_record; //0-indexed (record in the block not the entire file)
     HeapFileHeader *header;
     int id;
 } HeapFileIterator;

@@ -41,7 +41,7 @@ int HeapFile_Create(const char* fileName){
   memset(data, 0, BF_BLOCK_SIZE);
   memcpy(data, &header, sizeof(HeapFileHeader));
 
-  // Unpined και αποδέσμευση
+  // αποδέσμευση
   BF_Block_SetDirty(block);
   CALL_BF(BF_UnpinBlock(block));
 
@@ -162,8 +162,6 @@ HeapFileIterator HeapFile_CreateIterator(    int file_handle, HeapFileHeader* he
   out.file_handle = file_handle;
   out.current_block = 0;
   out.current_record = 0;
-  out.rinb = header_info->totalRecords;
-  if(header_info->totalBlocks > 1)out.rinb = (BF_BLOCK_SIZE - sizeof(HeapFileHeader)) / sizeof(Record);
   out.header = header_info;
   out.id = id;
   return out;
@@ -172,7 +170,42 @@ HeapFileIterator HeapFile_CreateIterator(    int file_handle, HeapFileHeader* he
 
 int HeapFile_GetNextRecord(    HeapFileIterator* heap_iterator, Record** record)
 {
-    * record=NULL;
-    return 1;
+  if(heap_iterator->header->totalRecords==0)return 0;
+  
+  int initial_block = heap_iterator->current_block;
+  int initial_record = heap_iterator->current_record;
+  
+  BF_Block *block; 
+  CALL_BF(BF_GetBlock(heap_iterator->file_handle,heap_iterator->current_block,block)); 
+  char *data = BF_Block_GetData(block);
+
+  if(heap_iterator->current_block==0) data += sizeof(HeapFileHeader);
+  Record *records = (Record*) data;
+  *record = &records[heap_iterator->current_record];
+  heap_iterator->current_record++;
+  CALL_BF(BF_UnpinBlock(block));
+
+  while(heap_iterator->current_block<heap_iterator->header->totalBlocks){
+    int rpb0full = (BF_BLOCK_SIZE - sizeof(HeapFileHeader)) / sizeof(Record);
+    int rpbfull = BF_BLOCK_SIZE/ sizeof(Record);
+    int rinb = (heap_iterator->current_block<heap_iterator->header->totalBlocks-1) ? rpbfull : (heap_iterator->header->totalRecords - rpb0full - (heap_iterator->header->totalBlocks-2)*rpbfull);
+    CALL_BF(BF_GetBlock(heap_iterator->file_handle,heap_iterator->current_block,block)); 
+    data = BF_Block_GetData(block);
+    if(heap_iterator->current_block==0) data += sizeof(HeapFileHeader);
+    records = (Record*) data;
+    for(int i=heap_iterator->current_record;i<rinb;i++){
+      if(records[i].id == heap_iterator->id){ // && records[i].id == -1 if we implement a no filter option 
+        heap_iterator->current_record = i;
+        CALL_BF(BF_UnpinBlock(block));
+        return 1;
+      }
+    }
+    heap_iterator->current_block++;
+    heap_iterator->current_record == 0;
+    CALL_BF(BF_UnpinBlock(block));
+  }
+  heap_iterator->current_block = initial_block;
+  heap_iterator->current_record = initial_record;
+  return 0;
 }
 
