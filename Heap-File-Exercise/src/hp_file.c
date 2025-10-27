@@ -103,7 +103,7 @@ int HeapFile_InsertRecord(int file_handle, HeapFileHeader *hp_info, const Record
   unsigned long available_space =(BF_BLOCK_SIZE*blocks_number) - (sizeof(Record)*hp_info->totalRecords) - sizeof(HeapFileHeader);
   
   // Εντοπισμος του τελευταίου block
-  CALL_BF(BF_GetBlock(file_handle,blocks_number-1, block) != BF_OK);
+  CALL_BF(BF_GetBlock(file_handle,blocks_number-1, block));
   data = BF_Block_GetData(block);
   // Αν υπάρχει χώρος προσθέτουμε την εγγραφή
   if(sizeof(record)<=available_space){
