@@ -159,6 +159,13 @@ int HeapFile_InsertRecord(int file_handle, HeapFileHeader *hp_info, const Record
 HeapFileIterator HeapFile_CreateIterator(    int file_handle, HeapFileHeader* header_info, int id)
 {
   HeapFileIterator out;
+  out.file_handle = file_handle;
+  out.current_block = 0;
+  out.current_record = 0;
+  out.rinb = header_info->totalRecords;
+  if(header_info->totalBlocks > 1)out.rinb = (BF_BLOCK_SIZE - sizeof(HeapFileHeader)) / sizeof(Record);
+  out.header = header_info;
+  out.id = id;
   return out;
 }
 
