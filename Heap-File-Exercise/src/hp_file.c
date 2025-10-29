@@ -246,7 +246,7 @@ int HeapFile_GetNextRecord(    HeapFileIterator* heap_iterator, Record** record)
     Record *records = (Record*) data;
 
     for(int j=heap_iterator->current_record;j<rinb;j++){
-      if(records[j].id == heap_iterator->id){ // && records[j].id == -1 if we implement a no filter option 
+      if(records[j].id == heap_iterator->id  || records[j].id == -1){ //-1 represents the no filter option
         heap_iterator->current_record = j;
         CALL_BF(BF_UnpinBlock(block));
         BF_Block_Destroy(&block);
