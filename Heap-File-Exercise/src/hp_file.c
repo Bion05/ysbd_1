@@ -34,7 +34,8 @@ int HeapFile_Create(const char* fileName){
   // Εγγραφές ανα block
   header.totalRecords = 0;
   header.totalBlocks = 1;
-  strncpy(header.filetype, "HEAP", sizeof(header.filetype) - 1);
+  memset(header.filetype, 0, sizeof(header.filetype));
+  memcpy(header.filetype, "HEAP", 4);
 
   // Κεφαλίδα
   char *data = BF_Block_GetData(block);
@@ -68,6 +69,7 @@ int HeapFile_Open(const char *fileName, int *file_handle, HeapFileHeader** heade
   //Έλεγχος οτι είναι Heap File
   if(strcmp((*header_info)->filetype, "HEAP") != 0){
     fprintf(stderr, "HeapFile_Open: Not Heap file\n");
+    free(*header_info);
     *header_info = NULL;
     CALL_BF(BF_UnpinBlock(block));
     CALL_BF(BF_CloseFile(*file_handle));
@@ -111,7 +113,7 @@ int HeapFile_InsertRecord(int file_handle, HeapFileHeader *hp_info, const Record
 
   // Αν υπάρχει χώρος προσθέτουμε την εγγραφή
   if(rinbfinal<rpb && blocks_number>1){
-    data += (BF_BLOCK_SIZE - rinbfinal*sizeof(record));
+    data +=rinbfinal*sizeof(Record);
     memcpy(data,&record,sizeof(Record));
     BF_Block_SetDirty(block);
     CALL_BF(BF_UnpinBlock(block));
@@ -165,9 +167,10 @@ HeapFileIterator HeapFile_CreateIterator(    int file_handle, HeapFileHeader* he
     out.current_record = 0;
     BF_UnpinBlock(block);
   }
+
+  //No matching record
   out.current_block = 0;
   out.current_record = 0;
-  BF_UnpinBlock(block);
   BF_Block_Destroy(&block);
   return out;
 }
@@ -212,20 +215,19 @@ int HeapFile_GetNextRecord(    HeapFileIterator* heap_iterator, Record** record)
   for(int i=heap_iterator->current_block; i<heap_iterator->header->totalBlocks; i++){
     heap_iterator->current_block = i;
     int rinb = (i<heap_iterator->header->totalBlocks-1) ? rpb : rinbfinal;
-    BF_Block_Init(&block);
-    BF_GetBlock(heap_iterator->file_handle,i,block); 
+    CALL_BF(BF_GetBlock(heap_iterator->file_handle,i,block)); 
     char* data = BF_Block_GetData(block);
     Record *records = (Record*) data;
     for(int j=heap_iterator->current_record;j<rinb;j++){
       if(records[j].id == heap_iterator->id){ // && records[j].id == -1 if we implement a no filter option 
         heap_iterator->current_record = j;
-        BF_UnpinBlock(block);
+        CALL_BF(BF_UnpinBlock(block));
         BF_Block_Destroy(&block);
         return 1;
       }
     }
     heap_iterator->current_record = 0;
-    BF_UnpinBlock(block);
+    CALL_BF(BF_UnpinBlock(block));
   }
   //no other matching records left
   heap_iterator->current_block = -1;
