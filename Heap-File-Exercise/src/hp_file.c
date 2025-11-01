@@ -89,18 +89,8 @@ int HeapFile_Close(int file_handle, HeapFileHeader *hp_info)
   BF_Block *block;
   BF_Block_Init(&block);
 
-  // Retrieve the header block
-  CALL_BF(BF_GetBlock(file_handle, 0, block));
-  char *data = BF_Block_GetData(block);
-
-  // Update the header with the current metadata
-  memset(data,0,BF_BLOCK_SIZE);
-  memcpy(data, hp_info, sizeof(HeapFileHeader));
+  if(hp_info != NULL)free(hp_info);
   
-  // Mark the block as dirty and close
-  BF_Block_SetDirty(block);
-  CALL_BF(BF_UnpinBlock(block));
-  BF_Block_Destroy(&block);
   CALL_BF(BF_CloseFile(file_handle));
 
   return 1;
@@ -128,6 +118,18 @@ int HeapFile_InsertRecord(int file_handle, HeapFileHeader *hp_info, const Record
     BF_Block_SetDirty(block);
     CALL_BF(BF_UnpinBlock(block));
     hp_info->totalRecords+=1;
+
+    // Retrieve the header block
+    CALL_BF(BF_GetBlock(file_handle, 0, block));
+    data = BF_Block_GetData(block);
+
+    // Update the header with the current metadata
+    memset(data,0,BF_BLOCK_SIZE);
+    memcpy(data, hp_info, sizeof(HeapFileHeader));
+    
+    // Mark the block as dirty and close
+    BF_Block_SetDirty(block);
+    CALL_BF(BF_UnpinBlock(block));
     BF_Block_Destroy(&block);
 
     return 1;
@@ -147,6 +149,17 @@ int HeapFile_InsertRecord(int file_handle, HeapFileHeader *hp_info, const Record
   hp_info->totalBlocks+=1;
   hp_info->totalRecords+=1;
 
+  // Retrieve the header block
+  CALL_BF(BF_GetBlock(file_handle, 0, block));
+  data = BF_Block_GetData(block);
+
+  // Update the header with the current metadata
+  memset(data,0,BF_BLOCK_SIZE);
+  memcpy(data, hp_info, sizeof(HeapFileHeader));
+  
+  // Mark the block as dirty and close
+  BF_Block_SetDirty(block);
+  CALL_BF(BF_UnpinBlock(block));
   BF_Block_Destroy(&block);
   return 1;
 }
